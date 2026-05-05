@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoresearcher"
+version = "0.1.0"
+description = "Small research-paper discovery pipeline for arXiv and Semantic Scholar."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "AutoResearcher Contributors" }]
+dependencies = ["pydantic>=2.0"]
+
+[project.scripts]
+autoresearcher = "autoresearcher.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
