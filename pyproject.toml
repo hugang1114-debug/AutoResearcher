@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "autoresearcher"
-version = "0.1.0"
-description = "Small research-paper discovery pipeline for arXiv and Semantic Scholar."
+version = "1.0.0"
+description = "Research-paper discovery and evidence-based paper analysis."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "AutoResearcher Contributors" }]
-dependencies = ["pydantic>=2.0"]
+dependencies = ["pydantic>=2.0", "pypdf>=4.0"]
 
 [project.scripts]
 autoresearcher = "autoresearcher.cli:main"

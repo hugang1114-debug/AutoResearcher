@@ -4,5 +4,7 @@ __pycache__/
 .venv/
 data/
 reports/
+outputs/
+workspaces/
 *.sqlite
 *.egg-info/

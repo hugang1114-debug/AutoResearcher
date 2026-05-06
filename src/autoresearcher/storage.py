@@ -88,6 +88,20 @@ class PaperStore:
         rows = self.connection.execute(sql, params).fetchall()
         return [PaperMetadata.from_record(dict(row)) for row in rows]
 
+    def get_paper(self, identifier: str) -> PaperMetadata | None:
+        row = self.connection.execute(
+            """
+            SELECT * FROM papers
+            WHERE source_key = ?
+               OR paper_id = ?
+               OR arxiv_id = ?
+               OR doi = ?
+            LIMIT 1
+            """,
+            (identifier, identifier, identifier, identifier),
+        ).fetchone()
+        return PaperMetadata.from_record(dict(row)) if row else None
+
     def close(self) -> None:
         self.connection.close()
 
