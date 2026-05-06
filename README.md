@@ -60,6 +60,19 @@ The command prints a short summary and writes:
 - SQLite database: `data/autoresearcher.sqlite`
 - Markdown report: `reports/research_report.md`
 
+### Semantic Scholar API Key
+
+Semantic Scholar supports authenticated requests with the `x-api-key` header.
+AutoResearcher reads the key from an environment variable:
+
+```powershell
+$env:SEMANTIC_SCHOLAR_API_KEY = "your-semantic-scholar-api-key"
+```
+
+Do not commit API keys to GitHub. The Semantic Scholar client enforces a
+1-request-per-second delay and retries `HTTP 429` responses with `Retry-After`
+or exponential backoff.
+
 ## Paper Analyzer
 
 The `paper_analyzer` module analyzes one paper at a time from a title, abstract,
@@ -145,6 +158,6 @@ pytest
 
 ## Notes
 
-Semantic Scholar may rate-limit anonymous requests. If one source fails, the CLI
+Semantic Scholar may still rate-limit requests. If one source fails, the CLI
 continues with papers from the other source and still writes the available
 results.
