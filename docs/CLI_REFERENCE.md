@@ -4,6 +4,28 @@ This reference lists the stable v1.0 command surface. Use `python -m
 autoresearcher ...` when running from source, or `autoresearcher ...` after
 installing the package in editable mode.
 
+## LLM Provider Setup
+
+For DeepSeek V4-Pro, copy the example environment file and fill in your API key:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Set:
+
+```text
+AUTORESEARCHER_LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=your-deepseek-api-key
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_THINKING=enabled
+DEEPSEEK_REASONING_EFFORT=high
+```
+
+Run analysis commands without `--mock` to use the configured model.
+
 ## Discovery and Storage
 
 Search papers and write a SQLite database plus Markdown report:

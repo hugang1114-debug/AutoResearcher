@@ -247,6 +247,54 @@ $env:AUTORESEARCHER_LLM_MODEL = "your-model-name"
 $env:OPENAI_BASE_URL = "https://api.openai.com/v1"
 ```
 
+### DeepSeek V4-Pro
+
+AutoResearcher also has a DeepSeek-specific client. The easiest setup is to copy
+`.env.example` to `.env` and fill in your real key:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Put your API key here:
+
+```text
+DEEPSEEK_API_KEY=your-deepseek-api-key
+```
+
+The default DeepSeek settings are:
+
+```text
+AUTORESEARCHER_LLM_PROVIDER=deepseek
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_THINKING=enabled
+DEEPSEEK_REASONING_EFFORT=high
+```
+
+`.env` is ignored by Git. Do not commit real API keys.
+
+You can also set the same values directly in PowerShell:
+
+```powershell
+$env:AUTORESEARCHER_LLM_PROVIDER = "deepseek"
+$env:DEEPSEEK_API_KEY = "your-deepseek-api-key"
+$env:DEEPSEEK_MODEL = "deepseek-v4-pro"
+$env:DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+```
+
+Then run analysis without `--mock`:
+
+```powershell
+python -m autoresearcher analyze `
+  --title "Paper title" `
+  --abstract "Paper abstract" `
+  --pdf-text-file outputs/text/paper.txt `
+  --json-output outputs/cards/paper.json `
+  --output outputs/cards/paper.md
+```
+
 ## Legacy Paper Analyzer
 
 The v0.1 `paper_analyzer` module remains for compatibility:

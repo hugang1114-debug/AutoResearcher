@@ -1,6 +1,17 @@
 from pathlib import Path
 
-from autoresearcher.analyzers.llm_client import MockLLMClient, NOT_SPECIFIED
+from autoresearcher.analyzers.llm_client import (
+    DEFAULT_DEEPSEEK_BASE_URL,
+    DEFAULT_DEEPSEEK_MODEL,
+    DEEPSEEK_API_KEY_ENV,
+    DEEPSEEK_BASE_URL_ENV,
+    DEEPSEEK_MODEL_ENV,
+    LLM_PROVIDER_ENV,
+    DeepSeekLLMClient,
+    MockLLMClient,
+    NOT_SPECIFIED,
+    build_default_llm_client,
+)
 from autoresearcher.analyzers.markdown_exporter import (
     build_paper_card_markdown,
     export_paper_card_markdown,
@@ -57,6 +68,49 @@ def test_mock_llm_client_returns_valid_json_without_external_api():
     assert result.title == "Mock Paper"
     assert result.problem.claim == "This paper evaluates RAG failures."
     assert result.method.claim == NOT_SPECIFIED
+
+
+def test_deepseek_client_from_env_uses_v4_pro_defaults(monkeypatch):
+    _clear_llm_env(monkeypatch)
+    monkeypatch.setenv(DEEPSEEK_API_KEY_ENV, "test-key")
+
+    client = DeepSeekLLMClient.from_env()
+
+    assert client.api_key == "test-key"
+    assert client.model == DEFAULT_DEEPSEEK_MODEL
+    assert client.base_url == DEFAULT_DEEPSEEK_BASE_URL
+    assert client.extra_payload["thinking"] == {"type": "enabled"}
+    assert client.extra_payload["reasoning_effort"] == "high"
+
+
+def test_build_default_llm_client_selects_deepseek_when_configured(monkeypatch):
+    _clear_llm_env(monkeypatch)
+    monkeypatch.setenv(DEEPSEEK_API_KEY_ENV, "test-key")
+
+    client = build_default_llm_client()
+
+    assert isinstance(client, DeepSeekLLMClient)
+
+
+def test_deepseek_client_can_read_local_env_file(monkeypatch, tmp_path: Path):
+    _clear_llm_env(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                f"{LLM_PROVIDER_ENV}=deepseek",
+                f"{DEEPSEEK_API_KEY_ENV}=file-key",
+                f"{DEEPSEEK_MODEL_ENV}=deepseek-v4-pro",
+                f"{DEEPSEEK_BASE_URL_ENV}=https://api.deepseek.com",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    client = build_default_llm_client()
+
+    assert isinstance(client, DeepSeekLLMClient)
+    assert client.api_key == "file-key"
 
 
 def test_paper_analyzer_normalizes_missing_information_to_not_specified():
@@ -158,6 +212,19 @@ def test_cli_export_card_loads_paper_from_sqlite(tmp_path: Path):
 
     assert rc == 0
     assert "# Paper Card: Stored RAG Paper" in output.read_text(encoding="utf-8")
+
+
+def _clear_llm_env(monkeypatch):
+    for name in [
+        LLM_PROVIDER_ENV,
+        DEEPSEEK_API_KEY_ENV,
+        DEEPSEEK_MODEL_ENV,
+        DEEPSEEK_BASE_URL_ENV,
+        "OPENAI_API_KEY",
+        "AUTORESEARCHER_LLM_MODEL",
+        "OPENAI_BASE_URL",
+    ]:
+        monkeypatch.delenv(name, raising=False)
 
 
 def _analysis_payload():

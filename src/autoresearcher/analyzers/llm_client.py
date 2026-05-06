@@ -8,6 +8,14 @@ import urllib.request
 from typing import Any, Protocol
 
 NOT_SPECIFIED = "not specified"
+LLM_PROVIDER_ENV = "AUTORESEARCHER_LLM_PROVIDER"
+DEEPSEEK_API_KEY_ENV = "DEEPSEEK_API_KEY"
+DEEPSEEK_MODEL_ENV = "DEEPSEEK_MODEL"
+DEEPSEEK_BASE_URL_ENV = "DEEPSEEK_BASE_URL"
+DEEPSEEK_REASONING_EFFORT_ENV = "DEEPSEEK_REASONING_EFFORT"
+DEEPSEEK_THINKING_ENV = "DEEPSEEK_THINKING"
+DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro"
+DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 
 class LLMClient(Protocol):
@@ -50,6 +58,7 @@ class OpenAICompatibleLLMClient:
         model: str,
         base_url: str = "https://api.openai.com/v1",
         timeout: float = 60.0,
+        extra_payload: dict[str, Any] | None = None,
     ) -> None:
         if not api_key:
             raise LLMConfigurationError("api_key is required.")
@@ -59,12 +68,13 @@ class OpenAICompatibleLLMClient:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.extra_payload = extra_payload or {}
 
     @classmethod
     def from_env(cls) -> "OpenAICompatibleLLMClient":
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        model = os.getenv("AUTORESEARCHER_LLM_MODEL", "")
-        base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        api_key = _get_env("OPENAI_API_KEY")
+        model = _get_env("AUTORESEARCHER_LLM_MODEL")
+        base_url = _get_env("OPENAI_BASE_URL", "https://api.openai.com/v1")
         if not api_key:
             raise LLMConfigurationError("Set OPENAI_API_KEY before using the LLM client.")
         if not model:
@@ -87,13 +97,14 @@ class OpenAICompatibleLLMClient:
                 {"role": "user", "content": prompt},
             ],
         }
+        payload.update(self.extra_payload)
         request = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
-                "User-Agent": "AutoResearcher/0.2",
+                "User-Agent": "AutoResearcher/1.0",
             },
             method="POST",
         )
@@ -108,13 +119,79 @@ class OpenAICompatibleLLMClient:
         return body["choices"][0]["message"]["content"]
 
 
+class DeepSeekLLMClient(OpenAICompatibleLLMClient):
+    """DeepSeek V4-Pro client using the OpenAI-compatible chat API."""
+
+    @classmethod
+    def from_env(cls) -> "DeepSeekLLMClient":
+        api_key = _get_env(DEEPSEEK_API_KEY_ENV)
+        model = _get_env(DEEPSEEK_MODEL_ENV, DEFAULT_DEEPSEEK_MODEL)
+        base_url = _get_env(DEEPSEEK_BASE_URL_ENV, DEFAULT_DEEPSEEK_BASE_URL)
+        if not api_key:
+            raise LLMConfigurationError("Set DEEPSEEK_API_KEY before using DeepSeek.")
+        return cls(
+            api_key=api_key,
+            model=model,
+            base_url=base_url,
+            extra_payload=_deepseek_extra_payload(),
+        )
+
+
 def build_default_llm_client(mock: bool = False) -> LLMClient:
     """Return a real client when configured, otherwise a deterministic mock."""
     if mock:
         return MockLLMClient()
-    if os.getenv("OPENAI_API_KEY") and os.getenv("AUTORESEARCHER_LLM_MODEL"):
+    provider = _get_env(LLM_PROVIDER_ENV).strip().casefold()
+    if provider == "mock":
+        return MockLLMClient()
+    if provider == "deepseek":
+        return DeepSeekLLMClient.from_env()
+    if provider in {"openai", "openai-compatible"}:
+        return OpenAICompatibleLLMClient.from_env()
+    if _get_env(DEEPSEEK_API_KEY_ENV):
+        return DeepSeekLLMClient.from_env()
+    if _get_env("OPENAI_API_KEY") and _get_env("AUTORESEARCHER_LLM_MODEL"):
         return OpenAICompatibleLLMClient.from_env()
     return MockLLMClient()
+
+
+def _deepseek_extra_payload() -> dict[str, Any]:
+    thinking = _get_env(DEEPSEEK_THINKING_ENV, "enabled").strip().casefold()
+    reasoning_effort = _get_env(DEEPSEEK_REASONING_EFFORT_ENV, "high").strip()
+    payload: dict[str, Any] = {}
+    if thinking in {"enabled", "disabled"}:
+        payload["thinking"] = {"type": thinking}
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
+    return payload
+
+
+def _get_env(name: str, default: str = "") -> str:
+    if name in os.environ:
+        return os.environ[name]
+    return _load_local_env().get(name, default)
+
+
+def _load_local_env() -> dict[str, str]:
+    path = os.getcwd()
+    env_path = os.path.join(path, ".env")
+    if not os.path.exists(env_path):
+        return {}
+    values: dict[str, str] = {}
+    with open(env_path, encoding="utf-8") as file:
+        for line in file:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, value = stripped.split("=", 1)
+            values[key.strip()] = _strip_env_quotes(value.strip())
+    return values
+
+
+def _strip_env_quotes(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
 
 
 def _build_default_mock_response(prompt: str) -> dict[str, Any]:
